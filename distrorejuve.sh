@@ -1,3 +1,4 @@
+
 #!/bin/bash
 export DEBIAN_FRONTEND=noninteractive
 export APT_LISTCHANGES_FRONTEND=none
@@ -977,16 +978,16 @@ function apt_get_remove() {
   apt-get $APT_GET_INSTALL_OPTIONS remove $@ | tee $tmplog
   local ret=${PIPESTATUS[0]}
   [  $ret -ne 0 ] && rm_overwrite_files "$tmplog" && apt-get $APT_GET_INSTALL_OPTIONS remove $@ && ret=$?
-  #if [  $ret -ne 0 ] && echo "$@" | egrep -qai 'gcc-6-base:i386'; then
+  #if [  $ret -ne 0 ] && echo "$@" | egrep -qai 'gcc-6-base:arm64'; then
   #fi
-  if [  $ret -ne 0 ] && echo "$@" | egrep -qai 'gcc-6-base:i386'; then
+  if [  $ret -ne 0 ] && echo "$@" | egrep -qai 'gcc-6-base:arm64'; then
     if egrep -qai 'systemd : Depends: libcap2-bin' "$tmplog"; then
       echo "dss:info: attempting to install libcap2-bin since gcc-6-base remove failed." && apt_get_install libcap2-bin:amd64 && apt-get $APT_GET_INSTALL_OPTIONS remove $@ && ret=$?
     fi
   fi
   local essentialissuepackages="$(cat $tmplog | grep --after-context 50 'WARNING: The following essential packages will be removed.' | grep '^ ' | tr '\n' ' ' | sed  -r 's/\(due to +\S*?\)//g')"
   [ ! -z "$essentialissuepackages" ] && echo "dss:warn: apt_get_remove $@ essential package issues for: $essentialissuepackages"
-  echo "$essentialissuepackages" | egrep -qai 'libgcc-s1:i386' && echo "dss:warn: This issue may be related to this bug report: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=992317"
+  echo "$essentialissuepackages" | egrep -qai 'libgcc-s1:arm64' && echo "dss:warn: This issue may be related to this bug report: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=992317"
   rm -rf "$tmplog"
   return $ret
 }
@@ -1016,12 +1017,12 @@ function apt_get_f_install() {
   local essentialissuepackages="$(cat $tmplog | grep --after-context 50 'WARNING: The following essential packages will be removed.' | grep '^ ' | tr '\n' ' ' | sed  -r 's/\(due to +\S*?\)//g')"
   [ ! -z "$essentialissuepackages" ] && echo "dss:warn: apt_get_f_install $@ essential package issues for: $essentialissuepackages"
   if [ ! -z "$essentialissuepackages" ] && echo "$essentialissuepackages" | grep -qai 'perl-base:amd64'; then
-    echo "dss:trying to dpkg -i perl-base:i386"
-    if dpkg -l | grep perl-base | grep i386 | grep -qai ii; then
-      echo "dss: perl-base:i386 already installed"
+    echo "dss:trying to dpkg -i perl-base:arm64"
+    if dpkg -l | grep perl-base | grep arm64 | grep -qai ii; then
+      echo "dss: perl-base:arm64 already installed"
     else 
-      apt-get download perl-base:i386
-      dpkg -i perl-base*i386*deb
+      apt-get download perl-base:arm64
+      dpkg -i perl-base*arm64*deb
       apt-get $APT_GET_INSTALL_OPTIONS -f install | tee $tmplog
       local ret=${PIPESTATUS[0]}
     fi
@@ -1112,7 +1113,7 @@ function check_systemd_install_matches_init() {
   [ -z "$psservicemanager" ] && lsof -p 1 | grep -qai systemd && psservicemanager="${psservicemanager}systemd"
   
   # packages will sometimes be
-  # systemd:i386
+  # systemd:arm64
   # or
   # systemd
   
@@ -1128,11 +1129,11 @@ function check_systemd_install_matches_init() {
   # root         1  0.0  0.0   2320  1340 ?        Ss   Oct08   2:32 init [2]
   # dpkg -l | grep sysv
   # ii  sysv-rc                            2.88dsf-41+deb7u1                all          System-V-like runlevel change mechanism
-  # ii  sysvinit                           2.88dsf-41+deb7u1                i386         System-V-like init utilities
-  # ii  sysvinit-utils                     2.88dsf-41+deb7u1                i386         System-V-like utilities
+  # ii  sysvinit                           2.88dsf-41+deb7u1                arm64         System-V-like init utilities
+  # ii  sysvinit-utils                     2.88dsf-41+deb7u1                arm64         System-V-like utilities
   
   # dpkg -l | grep systemd
-  # ii  libsystemd-login0:i386             44-11+deb7u5                     i386         systemd login utility library
+  # ii  libsystemd-login0:arm64             44-11+deb7u5                     arm64         systemd login utility library
   
   # systemd jessie
   # root@debian:~# ps auxf | egrep '^root +1 +'
@@ -1153,7 +1154,7 @@ function crossgrade_debian() {
   [  ! -f /etc/debian_version ] && echo "dss:info: Only debian crossgrades are supported, but not $(print_distro_info)." && return 0
   
   # see https://wiki.debian.org/CrossGrading
-  ! uname -a | grep -qai x86_64 && echo "dss:error: Not running a 64 bit kernel. Cannot crossgrade." 2>&1 && return 1
+#  ! uname -a | grep -qai x86_64 && echo "dss:error: Not running a 64 bit kernel. Cannot crossgrade." 2>&1 && return 1
   
   lsb_release -a 2>/dev/null | egrep -qai 'stretch|lenny|squeeze|wheezy|jessie' && echo "dss:error: Older (pre stretch) Debian distros have dependency issues preventing crossgrades.  $0 --dist-upgrade prior to cross grading." 2>&1 && return 1 
   
@@ -1167,7 +1168,7 @@ function crossgrade_debian() {
   local bittedness=$(getconf LONG_BIT)
   if echo $bittedness | grep -qai 64; then
     echo "dss:info: FYI getconf reports 64 bits."
-    #[ $(dpkg -l | grep '^ii ' | grep ':i386' | wc -l ) -gt 0 ] && echo "i386 packages on this server (may need tidying up): $(dpkg -l | grep '^ii ' | grep ':i386')"
+    #[ $(dpkg -l | grep '^ii ' | grep ':arm64' | wc -l ) -gt 0 ] && echo "arm64 packages on this server (may need tidying up): $(dpkg -l | grep '^ii ' | grep ':arm64')"
     #return 0
     # may be part way through.  may still be 386 packages.  so carry on with the cross grade.
   fi
@@ -1225,9 +1226,9 @@ function crossgrade_debian() {
   #WARNING: The following essential packages will be removed.
   #This should NOT be done unless you know exactly what you are doing!
   #perl-base:amd64
-  # => apt-get download perl-base:i386; dpkg -i perl-base*; apt-get -f install  
+  # => apt-get download perl-base:arm64; dpkg -i perl-base*; apt-get -f install  
   # download lots of amd64 packages if you get stuck, e.g. on ubuntu
-  # for i in $(dpkg -l | grep ii | grep i386  | awk '{print $2}' | sed 's/:i386//' | grep -v "^ "|grep -v "libc-dev" | awk '{print $0":amd64"}'); do apt-get download $i; done
+  # for i in $(dpkg -l | grep ii | grep arm64  | awk '{print $2}' | sed 's/:arm64//' | grep -v "^ "|grep -v "libc-dev" | awk '{print $0":amd64"}'); do apt-get download $i; done
   
   #if ! dpkg -l | egrep -qai '^ii.*dpkg.*amd64'; then
   if true; then
@@ -1237,10 +1238,10 @@ function crossgrade_debian() {
     # error if we append perl-base:amd64 to the line above...
     # and if we don't have perl-base then apt-get -f install has this error: E: Unmet dependencies
     echo "dss:trace: cross grading.  grabbing extra amd64 deb packages."
-    apt-get --reinstall --download-only $APT_GET_INSTALL_OPTIONS install perl-base:amd64 perl-base:i386
+    apt-get --reinstall --download-only $APT_GET_INSTALL_OPTIONS install perl-base:amd64 perl-base:arm64
     # above will also fail due to dependency hell
     [  $? -ne 0 ] && apt-get download perl-base:amd64
-    apt-get --reinstall --download-only $APT_GET_INSTALL_OPTIONS install perl:amd64 perl:i386
+    apt-get --reinstall --download-only $APT_GET_INSTALL_OPTIONS install perl:amd64 perl:arm64
     [  $? -ne 0 ] && apt-get download perl:amd64
     requiredlist="$(apt-rdepends apt apt-listchanges| grep -v "^ "|grep -v "libc-dev" | awk '{print $0":amd64"}')"
     echo "dss:trace: cross grading.  doing a 'download only' on $requiredlist."
@@ -1301,7 +1302,7 @@ function crossgrade_debian() {
     [ $ret -eq 0 ] && break;
     # apt-get -f install=>
     # The following NEW packages will be installed:
-    #  dash:i386
+    #  dash:arm64
     # WARNING: The following essential packages will be removed.
     # This should NOT be done unless you know exactly what you are doing!
     #  dash
@@ -1316,11 +1317,11 @@ function crossgrade_debian() {
     cd distrorejuveinfo/$$/essentialdebs
     echo "dss:trace: apt-get -f install had errors.  there may be some essential packages not installed.  trying to install 32 and 64 bit versions of: $essentialtoinstall"
     for i in $essentialtoinstall; do
-      i=$(echo $i | sed 's/:i386//')
+      i=$(echo $i | sed 's/:arm64//')
       i=$(echo $i | sed 's/:amd64//') 
-      # had been downloading 64 and 32 bit versions.  but installing both (for say perl-base) resulted in dpkg -l listing just the i386 version. 
+      # had been downloading 64 and 32 bit versions.  but installing both (for say perl-base) resulted in dpkg -l listing just the arm64 version. 
       #apt-get download $i
-      #apt-get download $i:i386
+      #apt-get download $i:arm64
       apt-get download $i:amd64
     done  
     dpkg_install $(find . -name '*.deb')
@@ -1343,8 +1344,8 @@ function crossgrade_debian() {
   fi
   #apt-get $APT_GET_INSTALL_OPTIONS autoremove
   
-  # doesn't seem to achieve much...  should result in apt-get install blah installing the amd64 (vs. i386) version
-  dpkg --get-selections | grep :i386 | sed -e s/:i386/:amd64/ | dpkg --set-selections
+  # doesn't seem to achieve much...  should result in apt-get install blah installing the amd64 (vs. arm64) version
+  dpkg --get-selections | grep :arm64 | sed -e s/:arm64/:amd64/ | dpkg --set-selections
   lsb_release -a 2>/dev/null | grep -qai Ubuntu && echo "dss:fiddle to try and have Ubuntu use amd64 packages by default." && 
   echo "dss:info: cross grading.  force installing of amd64 packages after dpkg --set-selections."
   apt_get_f_install
@@ -1361,13 +1362,13 @@ function crossgrade_debian() {
   for i in 0; do
     echo "dss:info: cross grading figuring out essential packages."
     local essentialpackages=
-    local i386apps="$(dpkg -l | grep '^ii' | grep ':i386' | awk '{print $2}' | sed 's/:i386$//' | grep -v '^lib' )"
-    local i386app=
+    local arm64apps="$(dpkg -l | grep '^ii' | grep ':arm64' | awk '{print $2}' | sed 's/:arm64$//' | grep -v '^lib' )"
+    local arm64app=
     local essentialdeps= 
-    for i386app in $i386apps; do
+    for arm64app in $arm64apps; do
       pause_check
       local needsdeps= 
-      apt-cache show $i386app | egrep -qai 'Essential: yes|Priority: required|Priority: important' && ! dpkg -l | egrep -qai '^ii.*${i386app}.*amd64' && essentialpackages="$essentialpackages ${i386app}:amd64" && needsdeps=true
+      apt-cache show $arm64app | egrep -qai 'Essential: yes|Priority: required|Priority: important' && ! dpkg -l | egrep -qai '^ii.*${arm64app}.*amd64' && essentialpackages="$essentialpackages ${arm64app}:amd64" && needsdeps=true
       [ -z "$needsdeps" ] && continue
       # pre-depends can include options (one of n).  e.g. init
       # apt-cache show init | grep Pre-Depends 
@@ -1375,16 +1376,16 @@ function crossgrade_debian() {
       # can also have versions
       # Pre-Depends: libc6 (>= 2.15), libgmp10, libmpfr6 (>= 3.1.3), libreadline7 (>= 6.0), libsigsegv2 (>= 2.9)
       local addep="" 
-      for i in $(apt-cache show $i386app | grep Pre-Depends  | sed  -r  's/\([^)]+\)//g' | sed 's/,//g' | sed 's/.*://' | sed 's/ | /____/g'); do
+      for i in $(apt-cache show $arm64app | grep Pre-Depends  | sed  -r  's/\([^)]+\)//g' | sed 's/,//g' | sed 's/.*://' | sed 's/ | /____/g'); do
         if echo "$i" | grep -qai '____'; then
           local j="$(echo "$i" | sed 's/____/ /g')"
           for k in $j; do 
             if dpkg -l | grep 'ii' | grep -qai " $k"; then
-              echo "dss:info:selecting $k as the pre-dependency for $i386app from options of '$j' since that is what is installed"
+              echo "dss:info:selecting $k as the pre-dependency for $arm64app from options of '$j' since that is what is installed"
               i="$k"
             fi
           done
-          [ -z "$i" ] && i="$(echo $j | awk '{print $0}')" &&  echo "dss:info:selecting $i as the pre-dependencies for $i386 from options of '$i' since it that is the first one listed and the others were not installed"
+          [ -z "$i" ] && i="$(echo $j | awk '{print $0}')" &&  echo "dss:info:selecting $i as the pre-dependencies for $arm64 from options of '$i' since it that is the first one listed and the others were not installed"
         fi        
         addep="$addep $i:amd64" 
       done
@@ -1429,51 +1430,51 @@ function crossgrade_debian() {
   
   local i=0
   for i in 0 1; do  
-    # for all i386 apps, install the amd64 and remove the i386.  some will fail, that's ok.
+    # for all arm64 apps, install the amd64 and remove the arm64.  some will fail, that's ok.
     # do
     #apt-get $APT_GET_INSTALL_OPTIONS autoremove
      
-    local i386toremove="$(dpkg -l | grep 'i386' | grep '^ii' | awk '{print $2}' | grep -v '^lib' | sed 's/:i386//' | sed 's/$/:i386/' | tr '\n' ' ')"
-    # => e.g. apache2-utils:i386 bc:i386 bind9-host:i386...
-    local amd64toinstall="$(echo $i386toremove | sed 's/:i386/:amd64/g')"
+    local arm64toremove="$(dpkg -l | grep 'arm64' | grep '^ii' | awk '{print $2}' | grep -v '^lib' | sed 's/:arm64//' | sed 's/$/:arm64/' | tr '\n' ' ')"
+    # => e.g. apache2-utils:arm64 bc:arm64 bind9-host:arm64...
+    local amd64toinstall="$(echo $arm64toremove | sed 's/:arm64/:amd64/g')"
     # e.g. => apache2-utils:amd64 bc:amd64 bind9-host:amd64
-    [  -z "$amd64toinstall" ] && [  -z "$i386toremove" ] && break
+    [  -z "$amd64toinstall" ] && [  -z "$arm64toremove" ] && break
     local ret=0   
     # tends to remove necessities.  like ifupdown
-    # echo "dss:trace: cross grading and bulk replacing i386 apps with 64 bit versions.  Round #$i"
-    # apt_get_install $amd64toinstall && apt_get_remove $i386toremove
+    # echo "dss:trace: cross grading and bulk replacing arm64 apps with 64 bit versions.  Round #$i"
+    # apt_get_install $amd64toinstall && apt_get_remove $arm64toremove
     #[  $? -ne 0 ] && ret=$(($ret+1))    
     local pkg=
-    local i386toremove="$(dpkg -l | grep 'i386' | grep '^ii' | awk '{print $2}' | grep -v '^lib' | sed 's/:i386//')"
-    echo "dss:trace: cross grading and individually installing 64 bit versions of all i386 packages: $i386toremove"
+    local arm64toremove="$(dpkg -l | grep 'arm64' | grep '^ii' | awk '{print $2}' | grep -v '^lib' | sed 's/:arm64//')"
+    echo "dss:trace: cross grading and individually installing 64 bit versions of all arm64 packages: $arm64toremove"
     # => e.g. apache2-utils bc bind9-host
-    local i386toremove2=""
+    local arm64toremove2=""
     # install them all
-    for pkg in $i386toremove ifupdown; do 
+    for pkg in $arm64toremove ifupdown; do 
       apt_get_install $pkg:amd64
       local lret=$?
       # fwiw apt-get install $alreadyinstalled returns 0
       [  $lret -eq 0 ] && echo $pkg | egrep -qai 'gcc.*base' && echo "dss:info: not apt-get remove-ing $pkg, as has tended to remove lots of necessary things.  e.g. ifupdown."
-      [  $lret -eq 0 ] && echo $pkg | egrep -qai 'gcc.*base' || i386toremove2="$i386toremove2 $pkg" 
+      [  $lret -eq 0 ] && echo $pkg | egrep -qai 'gcc.*base' || arm64toremove2="$arm64toremove2 $pkg" 
     done
-    echo "dss:trace: removing 32 bit versions of packages where we were able to install the 64bit version: $i386toremove2"
-    # then remove the i386 version.  Used to this after installing each amd64 package, but that sometimes led to other things being removed that broke things
-    # fwiw when you install $pkg:amd4 it will typically remove the $pkg:i386, so hopefully not will actually happen in this section?
-    for pkg in $i386toremove2 ; do 
+    echo "dss:trace: removing 32 bit versions of packages where we were able to install the 64bit version: $arm64toremove2"
+    # then remove the arm64 version.  Used to this after installing each amd64 package, but that sometimes led to other things being removed that broke things
+    # fwiw when you install $pkg:amd4 it will typically remove the $pkg:arm64, so hopefully not will actually happen in this section?
+    for pkg in $arm64toremove2 ; do 
       local lret=0
       if echo $pkg | egrep -qai 'gcc.*base'; then 
         true 
       else 
-        apt_get_remove $pkg:i386
+        apt_get_remove $pkg:arm64
         lret=$? 
         if [  $lret -ne 0 ]; then
-          echo "dss:warn: apt-get remove $pkg:i386 failed.  Trying an apt-get -f install.  Will continue irregardless."  
+          echo "dss:warn: apt-get remove $pkg:arm64 failed.  Trying an apt-get -f install.  Will continue irregardless."  
           ret=$(($ret+1))
           apt_get_f_install "after-${pkg}-remove"
         fi
       fi
     done
-    echo "dss:trace: completed individual install and removal of i386 packaged.  Ret code of $ret (0 means we are done, otherwise we go for another round)."
+    echo "dss:trace: completed individual install and removal of arm64 packaged.  Ret code of $ret (0 means we are done, otherwise we go for another round)."
     [  $ret -eq 0 ] && break
   done
   
@@ -1502,7 +1503,7 @@ function crossgrade_debian() {
       mkdir -p distrorejuveinfo/$$/settheory
       cd distrorejuveinfo/$$/settheory
       #[ir] e.g. to find desired = install or remove where status = installed 
-      dpkg -l | egrep '^[ir]i.*i386' | awk '{print $2}' | sed 's/:i386//' | sort > pkgs.386.log
+      dpkg -l | egrep '^[ir]i.*arm64' | awk '{print $2}' | sed 's/:arm64//' | sort > pkgs.386.log
       dpkg -l | egrep '^ii.*amd64' | awk '{print $2}' | sed 's/:amd64//' | sort> pkgs.amd64.log
       amd64toinstall="$(for i in $(comm -3  --check-order pkgs.amd64.log pkgs.386.log | grep -v '^[a-z]'); do echo "$i:amd64 "; done)"
 
@@ -1531,7 +1532,7 @@ function crossgrade_debian() {
   # aptitude:amd64 not installed
   # banana not available for architecture amd64
   # tar:amd64/xenial-security 1.28-2.1ubuntu0.1 uptodate
-  # tar:i386 not installed
+  # tar:arm64 not installed
   
   # =>
   # # echo "$available"
@@ -1543,7 +1544,7 @@ function crossgrade_debian() {
     local fromfile="$(find /root/distrorejuveinfo/ /root/deghostinfo/ -mtime -${DAYS_UPGRADE_ONGOING} 2>/dev/null | grep crossgrade)"
     [ ! -z "$fromfile" ] && fromfile="$(ls -1rt $fromfile | head -n 1)"
     [  -z "$fromfile" ] && break
-    local uninstalled="$(print_config_state_changes "$fromfile" | grep '^dss:configdiff:statechanges:-installed:' | sed 's/.*installed://' | sed 's/:i386//' | sed 's/:amd64//' | grep -v '^ *$' | grep -v wpasupplicant | tr '\n' ' ')"
+    local uninstalled="$(print_config_state_changes "$fromfile" | grep '^dss:configdiff:statechanges:-installed:' | sed 's/.*installed://' | sed 's/:arm64//' | sed 's/:amd64//' | grep -v '^ *$' | grep -v wpasupplicant | tr '\n' ' ')"
     # => e.g. apache2 apache2-bin fontconfig-config fonts-dejavu-core php5-curl php5-gd php5-imap
     # apt-show-versions  ruby:amd64
     # ruby not available for architecture amd64
@@ -1552,7 +1553,7 @@ function crossgrade_debian() {
     # rubygems-integration: not installed
     # systemd:amd64 not installed
     
-    local available=$(apt-show-versions  $uninstalled | grep -v i386 | grep 'not installed' | sed 's/ not installed.*//' | sed 's/:.*$//')
+    local available=$(apt-show-versions  $uninstalled | grep -v arm64 | grep 'not installed' | sed 's/ not installed.*//' | sed 's/:.*$//')
     # => e.g. apache2 apache2-bin fontconfig-config
     # (excludes older packages that were uninstalled.  e.g. php5 on a newer ubuntu/debian)
     local i=
@@ -1577,7 +1578,7 @@ function crossgrade_debian() {
   
   # sample cleanup/finish up/suggestions:
   
-  # bash : Conflicts: bash:i386
+  # bash : Conflicts: bash:arm64
   # apt-get download bash; dpkg_install bash*64.deb
   
   #  libpam-modules : PreDepends: libpam-modules-bin (= 1.1.8-3.6) =>
@@ -1592,23 +1593,23 @@ function crossgrade_debian() {
   
   #WARNING: The following essential packages will be removed.
   #This should NOT be done unless you know exactly what you are doing!
-  # diffutils:i386
+  # diffutils:arm64
   #=>
   # apt-get download diffutils
   # dpkg --install diffutils*amd64.deb
   
 
   # apt-get install apache2  
-  #apt-get install $(dpkg -l | grep '^ii' | grep i386 | awk '{print $2}' | sed 's/:i386$//' | grep -v '^lib')
+  #apt-get install $(dpkg -l | grep '^ii' | grep arm64 | awk '{print $2}' | sed 's/:arm64$//' | grep -v '^lib')
 
-  # apt-get purge zlib1g:i386
-  # remove i386 packages
-  # for i in $(dpkg -l | grep 'i386' | grep '^ii' | awk '{print $2}' | sed 's/:i386//' | grep -v '^lib' ); do apt-get -y remove $i:i386; done
+  # apt-get purge zlib1g:arm64
+  # remove arm64 packages
+  # for i in $(dpkg -l | grep 'arm64' | grep '^ii' | awk '{print $2}' | sed 's/:arm64//' | grep -v '^lib' ); do apt-get -y remove $i:arm64; done
   
   #apt-get install sysvinit-core:amd64
   
   # pkgs installed for older/different distros
-  # allpkgs="$(apt-cache pkgnames)"; for i in $(dpkg -l | grep 'i386' | grep '^ii' | awk '{print $2}' | grep -v '^lib' | sed 's/:i386//'); do echo " $allpkgs " | grep -qai " $i " && continue; echo $i; done
+  # allpkgs="$(apt-cache pkgnames)"; for i in $(dpkg -l | grep 'arm64' | grep '^ii' | awk '{print $2}' | grep -v '^lib' | sed 's/:arm64//'); do echo " $allpkgs " | grep -qai " $i " && continue; echo $i; done
   
   
   # e2fsprogs pre-depends on libcomerr2 (>= 1.42~W
@@ -1646,20 +1647,20 @@ function print_no_available_versions() {
   local remove_amd64=""
   # add amd64 and update list if we need it
   # dpkg --print-architecture 
-  #i386
+  #arm64
   # dpkg --print-foreign-architectures
   #amd64
   ! dpkg --print-foreign-architectures  | grep -qai amd64 && dpkg --add-architecture amd64 && remove_amd64="dpkg --remove-architecture amd64" && apt_get_update > /dev/null
   apt-show-versions | grep -v 'No available version' | grep amd64 | awk '{print $1}' | sed 's/:.*//'| sort > $amd64_available
-  # on ubuntu (at least) we get, say, postfix 'No available version in archive' for the i386, but there exists an amd64 package
+  # on ubuntu (at least) we get, say, postfix 'No available version in archive' for the arm64, but there exists an amd64 package
   # /usr/bin/apt-show-versions | egrep 'subversion|postfix|iproute|multiarch-support|php5-json'
   # iproute:all 1:4.3.0-1ubuntu3.16.04.5 installed: No available version in archive
   # iproute2:amd64 not installed
-  # iproute2:i386/focal 5.5.0-1ubuntu1 uptodate
-  # multiarch-support:i386 2.27-3ubuntu1.4 installed: No available version in archive
-  # php5-json:i386 1.3.2-2build1 installed: No available version in archive
+  # iproute2:arm64/focal 5.5.0-1ubuntu1 uptodate
+  # multiarch-support:arm64 2.27-3ubuntu1.4 installed: No available version in archive
+  # php5-json:arm64 1.3.2-2build1 installed: No available version in archive
   # postfix:amd64 not installed
-  # postfix:i386 3.3.0-1ubuntu0.3 installed: No available version in archive
+  # postfix:arm64 3.3.0-1ubuntu0.3 installed: No available version in archive
   # remove it if we added it
   # suppress 2 (lines unique in amd64_available) and 3 (lines in both) leaving 1 (just lines that only exist in not_available) 
   comm  -2 -3  $not_available $amd64_available 
@@ -1684,7 +1685,7 @@ function cruft_packages0() {
   local commandret=0
   
   # apt-show-versions
-  # ruby:i386 not installed
+  # ruby:arm64 not installed
   # openssl-blacklist:all 0.5-3 installed: No available version in archive
   # ruby-did-you-mean:all/stretch 1.0.0-2 uptodate
   
@@ -1697,7 +1698,7 @@ function cruft_packages0() {
     if [  ! -z "$remove" ]; then 
       echo "dss:trace: Working out the old packages to resume." 
       local oldpkgstoremove="$(print_no_available_versions | egrep -v "$ignorablecruft" | awk '{print $1}' | tr '\n' ' ')"
-      # e.g. oldpkgstoremove has mysql-server-5.0:i386 mysql-server-core-5.0:i386
+      # e.g. oldpkgstoremove has mysql-server-5.0:arm64 mysql-server-core-5.0:arm64
       [  $? -ne 0 ] && commandret=$((commandret+1))
       # /var/log/mysql/error.log:
       # [Warning] Failed to set up SSL because of the following SSL library error: SSL context is not usable without certificate and private key
@@ -1725,10 +1726,10 @@ function cruft_packages0() {
       return 0
     fi
     if [ $(getconf LONG_BIT) -eq 64 ]; then
-      dpkg -l | grep 'i386' | grep '^ii' | awk '{print $2}' > "$cruftlog"
+      dpkg -l | grep 'arm64' | grep '^ii' | awk '{print $2}' > "$cruftlog"
       if [  $(cat "$cruftlog" | head | wc -l ) -gt 0 ]; then
         has_cruft=$((has_cruft+1))
-        [  ! -z "$show" ] && echo "dss:warn: There are some i386 application packages still installed.  They can be removed by running bash $0 --remove-cruft.  They are: $(grep -v '^lib' "$cruftlog" | tr '\n' ' ') $(grep '^lib' "$cruftlog" | tr '\n' ' ')."
+        [  ! -z "$show" ] && echo "dss:warn: There are some arm64 application packages still installed.  They can be removed by running bash $0 --remove-cruft.  They are: $(grep -v '^lib' "$cruftlog" | tr '\n' ' ') $(grep '^lib' "$cruftlog" | tr '\n' ' ')."
         if [  ! -z "$remove" ]; then
   
           local loop=0
@@ -1736,42 +1737,42 @@ function cruft_packages0() {
             # dead code.  rely on --to-64bit call to crossgrade to sort this out.
             break;      
             echo "dss:trace: cross grading figuring out essential packages."
-            local essentialpackages=; for i in $(dpkg -l | grep '^ii' | grep :i386 | awk '{print $2}' | sed 's/:i386$//' | grep -v '^lib' ); do apt-cache show $i | egrep -qai 'Essential: yes|Priority: required|Priority: important' && essentialpackages="$essentialpackages $i:amd64"; done
+            local essentialpackages=; for i in $(dpkg -l | grep '^ii' | grep :arm64 | awk '{print $2}' | sed 's/:arm64$//' | grep -v '^lib' ); do apt-cache show $i | egrep -qai 'Essential: yes|Priority: required|Priority: important' && essentialpackages="$essentialpackages $i:amd64"; done
             echo "dss:trace: cross grading downloading essential packages via download and dpkg_install."
             [  ! -z "$essentialpackages" ] && if apt-get --reinstall --download-only $APT_GET_INSTALL_OPTIONS install $essentialpackages; then
               dpkg_install $(find /var/cache/apt/archives -type f  | egrep 'amd64.deb$|all.deb$')
               [  ! -d /root/distrorejuveinfo/$$ ] && mkdir /root/distrorejuveinfo/$$
               mv $(find /var/cache/apt/archives/ -type f | egrep 'amd64.deb$|all.deb$')  /root/distrorejuveinfo/$$
-              dpkg -l | grep 'i386' | grep '^ii' | awk '{print $2}' > "$cruftlog"
+              dpkg -l | grep 'arm64' | grep '^ii' | awk '{print $2}' > "$cruftlog"
             else
               echo "dss:trace: cross grading downloading essential packages (after download+install failed) via download and separate install" 
               apt-get $APT_GET_INSTALL_OPTIONS download $essentialpackages
               dpkg_install $(find . -type f |  egrep 'amd64.deb$|all.deb$')
               [  ! -d /root/distrorejuveinfo/$$ ] && mkdir /root/distrorejuveinfo/$$
               mv $(find /var/cache/apt/archives/ -type f  | egrep 'amd64.deb$|all.deb$') /root/distrorejuveinfo/$$
-              dpkg -l | grep 'i386' | grep '^ii' | awk '{print $2}' > "$cruftlog"
+              dpkg -l | grep 'arm64' | grep '^ii' | awk '{print $2}' > "$cruftlog"
             fi
           done
                
           # install 64 versions of the packages if we can.
-          local lib64="$(grep -v '^lib' "$cruftlog" | sed 's/:i386/:amd64/g' | tr '\n' ' ')"
-          echo "dss:trace: bulk installing 64bit versions of installed i386 apps: $lib64"
+          local lib64="$(grep -v '^lib' "$cruftlog" | sed 's/:arm64/:amd64/g' | tr '\n' ' ')"
+          echo "dss:trace: bulk installing 64bit versions of installed arm64 apps: $lib64"
           apt_get_install $lib64
           echo "dss:trace: force install check"
           apt_get_f_install
-          local lib32="$(dpkg -l | grep ':i386' | grep '^ii' | awk '{print $2}' | grep -v '^lib' | sed 's/:i386//')"
-          echo "dss:trace: individually installing 64bit versions of installed i386 apps: $lib32"
-          for i in $lib32; do apt_get_install $i:amd64 && apt_get_remove $i:i386; done
+          local lib32="$(dpkg -l | grep ':arm64' | grep '^ii' | awk '{print $2}' | grep -v '^lib' | sed 's/:arm64//')"
+          echo "dss:trace: individually installing 64bit versions of installed arm64 apps: $lib32"
+          for i in $lib32; do apt_get_install $i:amd64 && apt_get_remove $i:arm64; done
           echo "dss:trace: force install check"
           apt_get_f_install
           # [  $? -ne 0 ] && commandret=$((commandret+1))
           echo "dss:trace: removing 32 bit libraries"
-          apt_get_remove $(grep -v '^lib' "$cruftlog" | sed 's/:i386//' | sed 's/$/:i386/' | tr '\n' ' ' )
-          local lib32="$(dpkg -l | grep ':i386' | grep '^ii' | awk '{print $2}' | grep 'lib' )"
-          echo "dss:trace: individually removing i386 libraries: $lib32"
+          apt_get_remove $(grep -v '^lib' "$cruftlog" | sed 's/:arm64//' | sed 's/$/:arm64/' | tr '\n' ' ' )
+          local lib32="$(dpkg -l | grep ':arm64' | grep '^ii' | awk '{print $2}' | grep 'lib' )"
+          echo "dss:trace: individually removing arm64 libraries: $lib32"
           for i in $lib32; do apt_get_remove $i; done
           #apt-get $APT_GET_INSTALL_OPTIONS autoremove
-          [  $(dpkg -l | grep ':i386' | grep '^ii' | wc -l) -gt 0 ] && commandret=$((commandret+1)) 
+          [  $(dpkg -l | grep ':arm64' | grep '^ii' | wc -l) -gt 0 ] && commandret=$((commandret+1)) 
         fi
       fi
     fi
@@ -1892,7 +1893,7 @@ exit 0' > $i
   
     # dpkg -l | grep '/dev'
     # ii  makedev                          2.3.1-93                       all          creates device files in /dev
-    # rc  udev                             232-25+deb9u1                  i386         /dev/ and hotplug management daemon
+    # rc  udev                             232-25+deb9u1                  arm64         /dev/ and hotplug management daemon
     if dpkg -l | grep -qai '^ii.*udev-'; then break; fi
     
     apt_get_install udev
@@ -1974,14 +1975,14 @@ ret=$?
 apt-get $APT_GET_INSTALL_OPTIONS  autoremove
 if [ $ret -eq 0 ]; then
   echo "dss:trace:dist_upgrade_x_to_y:post_apt_get_dist_upgrade::olddistro=$old_distro:oldver=$old_ver:newdistro=$new_distro:ret=$ret"
-	if lsb_release -a 2>/dev/null| egrep -qai "${new_distro}|${new_ver:-xxxxx}"; then
-	  # dist-upgrade returned ok, and lsb_release thinks we are wheezy
-	  echo "dss:info: dist-upgrade from ${old_distro} to ${new_distro} appears to have worked." 
-	  return 0; 
-	else
-	  echo "dss:warn: dist-upgrade from ${old_distro} appears to have failed.  lsb_release does not match '${new_distro}' or '${new_ver:-xxxxx}': $(lsb_release -a)"
-	  return 1
-	fi
+        if lsb_release -a 2>/dev/null| egrep -qai "${new_distro}|${new_ver:-xxxxx}"; then
+          # dist-upgrade returned ok, and lsb_release thinks we are wheezy
+          echo "dss:info: dist-upgrade from ${old_distro} to ${new_distro} appears to have worked." 
+          return 0; 
+        else
+          echo "dss:warn: dist-upgrade from ${old_distro} appears to have failed.  lsb_release does not match '${new_distro}' or '${new_ver:-xxxxx}': $(lsb_release -a)"
+          return 1
+        fi
 fi
 echo "dss:error:dist_upgrade_x_to_y:post_apt_get_dist_upgrade::olddistro=$old_distro:oldver=$old_ver:newdistro=$new_distro:ret=$ret"
 
@@ -2011,7 +2012,7 @@ for modifiedconfigfile in $modifiedconfigfiles; do
   
   #figure out the filename
   #apt-get --print-uris download apache2
-  # 'http://http.us.debian.org/debian/pool/main/a/apache2/apache2_2.4.10-10+deb8u7_i386.deb' apache2_2.4.10-10+deb8u7_i386.deb 207220 SHA256:7974cdeed39312fda20165f4ee8bebc10f51062600a7cd95f4c5cba32f7ae12c
+  # 'http://http.us.debian.org/debian/pool/main/a/apache2/apache2_2.4.10-10+deb8u7_arm64.deb' apache2_2.4.10-10+deb8u7_arm64.deb 207220 SHA256:7974cdeed39312fda20165f4ee8bebc10f51062600a7cd95f4c5cba32f7ae12c
   # note will not return a result if the file is already here (hence the 'hidden' stuff below).
   local debfilename=$(apt-get --print-uris download "$pkg" 2>/dev/null| awk '{print $2}')
   [ -z "$debfilename" ] && continue
@@ -2439,10 +2440,10 @@ if dpkg -s libc6 2>/dev/null | grep -q "Status.*installed" ; then
   apt_get_install libc6
   ret=$?
   if [ $ret -eq 0 ]; then
-  	echo "dss:fixmethod: apt-get install"
-  	# if wrong version is installed you can force the version with something like this on squeeze:
-  	# apt-get install libc6=2.11.3-4+deb6u4 libc6-i686=2.11.3-4+deb6u4 libc-bin=2.11.3-4+deb6u4 
-  	return 0
+        echo "dss:fixmethod: apt-get install"
+        # if wrong version is installed you can force the version with something like this on squeeze:
+        # apt-get install libc6=2.11.3-4+deb6u4 libc6-i686=2.11.3-4+deb6u4 libc-bin=2.11.3-4+deb6u4 
+        return 0
   fi
   echo "dss:error: Failed doing apt-get -y install libc6"
   prep_ghost_output_dir
@@ -2451,14 +2452,14 @@ if dpkg -s libc6 2>/dev/null | grep -q "Status.*installed" ; then
   ret=$?
   local file=$(find . -name '*.deb' | grep libc6 | head -n 1)
   if [ $ret -ne 0 ] || [ -z "$file" ]; then
-  	echo "dss:error: Failed downloading the libc6 package with apt-get download libc6"
-  	return 1
+        echo "dss:error: Failed downloading the libc6 package with apt-get download libc6"
+        return 1
   fi
   dpkg -i $file
   ret=$?
   if [ $ret -eq 0 ]; then
-  	echo "dss:fixmethod: apt-get download libc6 and dpkg -i"
-  	return 0
+        echo "dss:fixmethod: apt-get download libc6 and dpkg -i"
+        return 0
   fi
   return $ret
 fi
@@ -2492,27 +2493,27 @@ function yum_enable_rhel4() {
 if which yum >/dev/null 2>&1; then echo "dss:info: yum enabled on a rhel4 distro already."; return 0; fi
 echo "dss:info: yum not enabled on $(print_distro_info).  Trying to enable it."
 {
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/libxml2-2.6.16-12.6.i386.rpm
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/libxml2-python-2.6.16-12.6.i386.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/libxml2-2.6.16-12.6.arm64.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/libxml2-python-2.6.16-12.6.arm64.rpm
 
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/readline-4.3-13.i386.rpm
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/python-2.3.4-14.7.el4.i386.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/readline-4.3-13.arm64.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/python-2.3.4-14.7.el4.arm64.rpm
 
 # install all together else dependency issues
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/sqlite-3.3.6-2.i386.rpm http://vault.centos.org/4.9/os/i386/CentOS/RPMS/sqlite-devel-3.3.6-2.i386.rpm http://vault.centos.org/4.9/os/i386/CentOS/RPMS/python-sqlite-1.1.7-1.2.1.i386.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/sqlite-3.3.6-2.arm64.rpm http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/sqlite-devel-3.3.6-2.arm64.rpm http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/python-sqlite-1.1.7-1.2.1.arm64.rpm
 
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/python-elementtree-1.2.6-5.el4.centos.i386.rpm
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/sqlite-3.3.6-2.i386.rpm
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/python-sqlite-1.1.7-1.2.1.i386.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/python-elementtree-1.2.6-5.el4.centos.arm64.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/sqlite-3.3.6-2.arm64.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/python-sqlite-1.1.7-1.2.1.arm64.rpm
 
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/elfutils-libelf-0.97.1-5.i386.rpm
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/elfutils-0.97.1-5.i386.rpm
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/popt-1.9.1-32_nonptl.i386.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/elfutils-libelf-0.97.1-5.arm64.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/elfutils-0.97.1-5.arm64.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/popt-1.9.1-32_nonptl.arm64.rpm
 
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/python-urlgrabber-2.9.8-2.noarch.rpm
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/yum-metadata-parser-1.0-8.el4.centos.i386.rpm
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/centos-release-4-8.i386.rpm
-rpm -Uvh http://vault.centos.org/4.9/os/i386/CentOS/RPMS/yum-2.4.3-4.el4.centos.noarch.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/python-urlgrabber-2.9.8-2.noarch.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/yum-metadata-parser-1.0-8.el4.centos.arm64.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/centos-release-4-8.arm64.rpm
+rpm -Uvh http://vault.centos.org/4.9/os/arm64/CentOS/RPMS/yum-2.4.3-4.el4.centos.noarch.rpm
 prep_ghost_output_dir
 if [ ! -e /root/distrorejuveinfo/CentOS-Base.repo ]; then 
   echo "dss:info: Running cp /etc/yum.repos.d/CentOS-Base.repo /root/distrorejuveinfo/CentOS-Base.repo" 
@@ -2923,6 +2924,4 @@ elif [ "--resume" = "${ACTION:-$1}" ] ; then
 else
   print_usage
 fi
-
-
 
