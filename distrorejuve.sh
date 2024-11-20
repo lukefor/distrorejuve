@@ -2898,7 +2898,6 @@ elif [ "--to-64bit" = "${ACTION:-$1}" ] ; then
       echo "This distro is 64 bit already.  But some 32 bit packages are installed.  Re-running crossgrade."
     else 
       echo "Distro is already 64 bit.  Cannot locate any 32 bit packages.  All good."
-      exit 0
     fi 
   fi
   has_cruft_packages oldpkg && [  -z "$IGNORECRUFT" ] && show_cruft_packages && echo "There are some old packages installed.  Best to remove them before proceeding.  Do that by running bash $0 --remove-cruft.  Or to ignore that, run export IGNORECRUFT=Y and re-run this command. " && exit 1
